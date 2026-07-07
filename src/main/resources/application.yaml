@@ -1,0 +1,17 @@
+server:
+  port: 8090
+spring:
+  application:
+    name: fake-gateway
+    api-key: ${API_KEY}
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fake_gateway
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update # Use 'update' for development, 'validate' for production
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
