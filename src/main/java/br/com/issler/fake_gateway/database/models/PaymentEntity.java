@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -33,4 +34,7 @@ public class PaymentEntity {
 
     @Column(name = "payer_cpf", nullable = false, columnDefinition = "CHAR(11)")
     private String payerCpf;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 }

@@ -24,10 +24,11 @@ public class PaymentController {
         PaymentEntity payment = paymentService.process(createPaymentDTO);
 
         return PaymentResponse.builder()
-                .paymentId(payment.getId())
+                .gatewayPaymentId(payment.getId())
                 .amount(payment.getAmount())
                 .paymentMethod(payment.getPaymentMethod())
                 .status(payment.getStatus())
+                .paidAt(payment.getPaidAt())
                 .qrCode(payment.getPaymentMethod()
                         .equals(PaymentMethodType.PIX) ? "pix_qr_code" : null)
                 .build();

@@ -4,6 +4,8 @@ spring:
   application:
     name: fake-gateway
     api-key: ${API_KEY}
+    your-api-key: ${YOUR_API_KEY}
+    your-api-url: "http://localhost:8080" # if deploy, insert here url
   datasource:
     url: jdbc:postgresql://localhost:5432/fake_gateway
     username: ${DB_USER}
@@ -15,3 +17,5 @@ spring:
     properties:
       hibernate:
         format_sql: true
+payment:
+  confirm-delay-ms: 5000

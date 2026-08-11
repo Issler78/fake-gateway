@@ -1,0 +1,19 @@
+server:
+  port: 8090
+spring:
+  application:
+    api-key: test-api-key
+    your-api-key: test-your-api-key
+    your-api-url: undefined # it should be replaced with the actual URL of the gateway service when running tests.
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: test
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+logging:
+  level:
+    org.springframework.test.context.cache: DEBUG
+payment:
+  confirm-delay-ms: 200
