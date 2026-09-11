@@ -22,6 +22,7 @@ public class GlobalExceptionsHandler {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 // field error + message error
                 .message(Objects.requireNonNull(e.getBindingResult().getFieldError()).getField() + " " + Objects.requireNonNull(e.getBindingResult().getFieldError()).getDefaultMessage())
+                .error("VALIDATION_ERROR")
                 .status(HttpStatus.BAD_REQUEST.value())
                 .build();
 
@@ -43,6 +44,7 @@ public class GlobalExceptionsHandler {
 
             ErrorResponse errorResponse = ErrorResponse.builder()
                     .message(field + " should be either: " + allowedValues)
+                    .error("VALIDATION_ERROR")
                     .status(HttpStatus.BAD_REQUEST.value())
                     .build();
 
@@ -51,6 +53,7 @@ public class GlobalExceptionsHandler {
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message("Invalid JSON")
+                .error("VALIDATION_ERROR")
                 .status(HttpStatus.BAD_REQUEST.value())
                 .build();
 
@@ -61,6 +64,7 @@ public class GlobalExceptionsHandler {
     public ResponseEntity<ErrorResponse> handlePaymentNotFoundException(PaymentNotFoundException e) {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .message(e.getMessage())
+                .error("PAYMENT_NOT_FOUND")
                 .status(HttpStatus.NOT_FOUND.value())
                 .build();
 
@@ -72,6 +76,7 @@ public class GlobalExceptionsHandler {
 
         ErrorResponse response = ErrorResponse.builder()
                 .message("Internal server error")
+                .error("INTERNAL_ERROR")
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .build();
 
