@@ -1,5 +1,6 @@
 package br.com.issler.fake_gateway.config;
 
+import br.com.issler.fake_gateway.exceptions.ApiKeyAuthenticationEntryPointException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
     private final ApiKeyFilter apiKeyFilter;
+    private final ApiKeyAuthenticationEntryPointException apiKeyAuthenticationEntryPointException;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -24,7 +26,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .authenticationEntryPoint(apiKeyAuthenticationEntryPointException)
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/payments/**").authenticated()
