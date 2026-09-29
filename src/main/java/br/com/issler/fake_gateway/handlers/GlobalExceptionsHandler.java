@@ -1,6 +1,7 @@
 package br.com.issler.fake_gateway.handlers;
 
 import br.com.issler.fake_gateway.exceptions.ErrorResponse;
+import br.com.issler.fake_gateway.exceptions.GatewayServiceException;
 import br.com.issler.fake_gateway.exceptions.PaymentNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,23 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionsHandler {
+
+    @ExceptionHandler(GatewayServiceException.class)
+    public ResponseEntity<ErrorResponse> handleGatewayServiceException(GatewayServiceException e) {
+        HttpStatus status = switch (e.getType()) {
+            case INVALID_DOCUMENT -> HttpStatus.BAD_REQUEST;
+            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+            case INTERNAL_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+
+        ErrorResponse response = ErrorResponse.builder()
+                .message(e.getMessage())
+                .error(e.getType().name())
+                .status(status.value())
+                .build();
+
+        return ResponseEntity.status(status).body(response);
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e){
