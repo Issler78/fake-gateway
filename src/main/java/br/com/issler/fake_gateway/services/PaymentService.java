@@ -50,13 +50,14 @@ public class PaymentService {
 
         boolean isPix = createPaymentDTO.paymentMethod().equals(PaymentMethodType.PIX);
         boolean cardReject = CPF_CARD_REJECTED.equals(createPaymentDTO.payerCpf());
+        boolean pixReject = CPF_PIX_REJECTED.equals(createPaymentDTO.payerCpf());
         PaymentEntity payment = paymentRepository.save(
                 PaymentEntity.builder()
                     .amount(createPaymentDTO.amount())
                     .payerCpf(createPaymentDTO.payerCpf())
                     .paymentMethod(createPaymentDTO.paymentMethod())
-                    .paidAt(isPix || cardReject ? null : LocalDateTime.now())
-                    .status(initialStatus(isPix, cardReject))
+                    .paidAt(isPix || cardReject || pixReject ? null : LocalDateTime.now())
+                    .status(initialStatus(isPix, cardReject, pixReject))
                     .build()
         );
 
@@ -78,9 +79,9 @@ public class PaymentService {
         }
     }
 
-    private PaymentStatusType initialStatus(boolean isPix, boolean cardReject){
-        if(isPix) return PaymentStatusType.PENDING;
-        if(cardReject) return PaymentStatusType.REJECTED;
+    private PaymentStatusType initialStatus(boolean isPix, boolean cardReject, boolean pixReject){
+        if(isPix && !pixReject) return PaymentStatusType.PENDING;
+        if(cardReject || pixReject) return PaymentStatusType.REJECTED;
         return PaymentStatusType.ACCEPTED;
     }
 
