@@ -1,4 +1,4 @@
-package br.com.issler.fake_gateway.config;
+package br.com.issler.fake_gateway.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
