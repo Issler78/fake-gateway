@@ -20,19 +20,9 @@ public class GlobalExceptionsHandler {
 
     @ExceptionHandler(GatewayServiceException.class)
     public ResponseEntity<ErrorResponse> handleGatewayServiceException(GatewayServiceException e) {
-        HttpStatus status = switch (e.getType()) {
-            case INVALID_DOCUMENT -> HttpStatus.BAD_REQUEST;
-            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
-            case INTERNAL_FAILURE -> HttpStatus.INTERNAL_SERVER_ERROR;
-        };
+        ErrorResponse response = ErrorResponse.fromGatewayException(e);
 
-        ErrorResponse response = ErrorResponse.builder()
-                .message(e.getMessage())
-                .error(e.getType().name())
-                .status(status.value())
-                .build();
-
-        return ResponseEntity.status(status).body(response);
+        return ResponseEntity.status(response.status()).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

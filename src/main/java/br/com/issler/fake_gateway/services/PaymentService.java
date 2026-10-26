@@ -1,103 +1,69 @@
 package br.com.issler.fake_gateway.services;
 
+import br.com.issler.fake_gateway.contracts.GatewayResponse;
+import br.com.issler.fake_gateway.database.models.IdempotencyKeyEntity;
 import br.com.issler.fake_gateway.database.models.PaymentEntity;
-import br.com.issler.fake_gateway.database.repositories.IPaymentRepository;
 import br.com.issler.fake_gateway.dtos.CreatePaymentDTO;
-import br.com.issler.fake_gateway.enums.GatewayErrorType;
+import br.com.issler.fake_gateway.dtos.PaymentResponse;
 import br.com.issler.fake_gateway.enums.PaymentMethodType;
-import br.com.issler.fake_gateway.enums.PaymentStatusType;
+import br.com.issler.fake_gateway.exceptions.ErrorResponse;
 import br.com.issler.fake_gateway.exceptions.GatewayServiceException;
-import br.com.issler.fake_gateway.exceptions.PaymentNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
+import br.com.issler.fake_gateway.utils.PaymentProcessor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
-    private final IPaymentRepository paymentRepository;
-    private final WebhookService webhookService;
-    private final ConcurrentTaskScheduler taskScheduler;
-    private final long confirmPaymentDelay;
+    private final PaymentProcessor processor;
+    private final IdempotencyKeyService idempotencyKeyService;
 
-    private static final String CPF_INVALID = "11111111111";
-    private static final String CPF_INTERNAL_ERROR = "22222222222";
-    private static final String CPF_RATE_LIMITED = "33333333333";
-    private static final String CPF_CARD_REJECTED = "44444444444";
-    private static final String CPF_PIX_REJECTED = "55555555555";
+    public GatewayResponse process(CreatePaymentDTO createPaymentDTO, String idempotencyKey) throws Exception {
+        // simulate processing the payment
 
-    public PaymentService(
-            @Value("${payment.confirm-delay-ms}")
-            long confirmPaymentDelay,
-            IPaymentRepository paymentRepository,
-            WebhookService webhookService,
-            ConcurrentTaskScheduler taskScheduler
-    ){
-        this.paymentRepository = paymentRepository;
-        this.webhookService = webhookService;
-        this.taskScheduler = taskScheduler;
-        this.confirmPaymentDelay = confirmPaymentDelay;
-    }
-
-    @Transactional
-    public PaymentEntity process(CreatePaymentDTO createPaymentDTO) {
-        // simulate processing the payment and saving it to the database
-        validate(createPaymentDTO);
-
-        boolean isPix = createPaymentDTO.paymentMethod().equals(PaymentMethodType.PIX);
-        boolean cardReject = CPF_CARD_REJECTED.equals(createPaymentDTO.payerCpf());
-        boolean pixReject = CPF_PIX_REJECTED.equals(createPaymentDTO.payerCpf());
-        PaymentEntity payment = paymentRepository.save(
-                PaymentEntity.builder()
-                    .amount(createPaymentDTO.amount())
-                    .payerCpf(createPaymentDTO.payerCpf())
-                    .paymentMethod(createPaymentDTO.paymentMethod())
-                    .paidAt(isPix || cardReject || pixReject ? null : LocalDateTime.now())
-                    .status(initialStatus(isPix, cardReject, pixReject))
-                    .build()
-        );
-
-        if(isPix){
-            UUID paymentId = payment.getId();
-            taskScheduler.schedule(() -> confirmPayment(paymentId), Instant.now().plusMillis(confirmPaymentDelay));
+        Optional<IdempotencyKeyEntity> existingKey = idempotencyKeyService.findByKey(UUID.fromString(idempotencyKey));
+        if (existingKey.isPresent()) {
+            return existingKey.get().getResponse();
         }
 
-        return payment;
-
-    }
-
-    private void validate(CreatePaymentDTO dto){
-        switch (dto.payerCpf()){
-            case CPF_INVALID -> throw new GatewayServiceException("Invalid CPF (simulated)", GatewayErrorType.INVALID_DOCUMENT);
-            case CPF_INTERNAL_ERROR -> throw new GatewayServiceException("Internal error (simulated)", GatewayErrorType.INTERNAL_FAILURE);
-            case CPF_RATE_LIMITED -> throw new GatewayServiceException("Rate limited (simulated)", GatewayErrorType.RATE_LIMITED);
-            default -> {}
-        }
-    }
-
-    private PaymentStatusType initialStatus(boolean isPix, boolean cardReject, boolean pixReject){
-        if(isPix && !pixReject) return PaymentStatusType.PENDING;
-        if(cardReject || pixReject) return PaymentStatusType.REJECTED;
-        return PaymentStatusType.ACCEPTED;
-    }
-
-    private void confirmPayment(UUID paymentId) {
-        PaymentEntity payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException("Payment not found"));
 
 
+        GatewayResponse response;
+        try {
+            PaymentEntity payment = processor.save(createPaymentDTO);
+            response = PaymentResponse.<GatewayResponse>builder()
+                    .gatewayPaymentId(payment.getId())
+                    .amount(payment.getAmount())
+                    .paymentMethod(payment.getPaymentMethod())
+                    .status(payment.getStatus())
+                    .paidAt(payment.getPaidAt())
+                    .qrCode(payment.getPaymentMethod()
+                            .equals(PaymentMethodType.PIX) ? "pix_qr_code" : null)
+                    .build();
+        } catch (GatewayServiceException e){
+            if(e.getType().isClientError()){
+                throw e;
+            }
 
-        boolean simulateReject = CPF_PIX_REJECTED.equals(payment.getPayerCpf());
-        payment.setStatus(simulateReject ? PaymentStatusType.REJECTED : PaymentStatusType.ACCEPTED);
-        if (!simulateReject) {
-            payment.setPaidAt(LocalDateTime.now());
+            response = ErrorResponse.fromGatewayException(e);
         }
 
-        paymentRepository.save(payment);
-        webhookService.send(payment);
+        idempotencyKeyService.save(UUID.fromString(idempotencyKey), response);
+
+
+
+        // schedule payment task here, for commit payment before schedule task
+        if(
+                (response instanceof PaymentResponse paymentResponse) &&
+                (paymentResponse.paymentMethod().equals(PaymentMethodType.PIX))
+        ) {
+            UUID paymentId = paymentResponse.gatewayPaymentId();
+            processor.schedulePaymentConfirmation(paymentId);
+        }
+
+        return response;
     }
 }

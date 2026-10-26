@@ -1,5 +1,6 @@
 package br.com.issler.fake_gateway.dtos;
 
+import br.com.issler.fake_gateway.contracts.GatewayResponse;
 import br.com.issler.fake_gateway.enums.PaymentMethodType;
 import br.com.issler.fake_gateway.enums.PaymentStatusType;
 import lombok.Builder;
@@ -16,4 +17,4 @@ public record PaymentResponse(
         LocalDateTime paidAt,
         PaymentMethodType paymentMethod,
         String qrCode
-) {}
+) implements GatewayResponse {}
